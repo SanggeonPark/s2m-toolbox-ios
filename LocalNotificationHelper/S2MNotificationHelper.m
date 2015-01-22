@@ -1,6 +1,6 @@
 //
 //  S2MNotificationHelper.m
-//  S2MLocalNotification
+//  S2MToolbox
 //
 //  Created by ParkSanggeon on 21/01/15.
 //  Copyright (c) 2015 S2M. All rights reserved.
@@ -33,13 +33,11 @@
 {
     NSURL* url = [NSURL fileURLWithPath:path];
     return [self addSkipBackupAttributeToItemAtURL:url];
-    
 }
 
 + (NSString *)cacheFolderPath
 {
     static NSString *documentsPath;
-    
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         NSArray *documentsPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
@@ -51,7 +49,6 @@
         }
         [self addSkipBackupAttributeToItemAtFilePath:documentsPath];
     });
-    
     return documentsPath;
 }
 
@@ -80,21 +77,32 @@
 + (id<NSCoding>)cacheForKey:(NSString *)key
 {
     NSString *archivePath = [self cachePathWithKey:key];
-    
     return !archivePath ? nil : [NSKeyedUnarchiver unarchiveObjectWithFile:archivePath];
+}
+
++ (NSArray *)allCachePaths
+{
+    NSFileManager* fileManager = [[NSFileManager alloc] init];
+    NSMutableArray *paths = [NSMutableArray array];
+    NSString *folderPath = [self cacheFolderPath];
+    NSDirectoryEnumerator* enumerator = [fileManager enumeratorAtPath:folderPath];
+    NSString* file;
+    
+    while (file = [enumerator nextObject]) {
+        [paths addObject:[folderPath stringByAppendingPathComponent:file]];
+    }
+    return paths;
 }
 
 + (void) removeAllCaches
 {
     NSFileManager* fileManager = [[NSFileManager alloc] init];
-    NSString *folderPath = [self cacheFolderPath];
-    NSDirectoryEnumerator* enumerator = [fileManager enumeratorAtPath:folderPath];
+    NSArray *cachePaths = [self allCachePaths];
     NSError* err = nil;
     BOOL res;
     
-    NSString* file;
-    while (file = [enumerator nextObject]) {
-        res = [fileManager removeItemAtPath:[folderPath stringByAppendingPathComponent:file] error:&err];
+    for (NSString *path in cachePaths) {
+        res = [fileManager removeItemAtPath:path error:&err];
         if (!res && err) {
             NSLog(@"Can't remove Notification: %@", err);
         }
@@ -104,18 +112,15 @@
 + (NSArray *)allCaches
 {
     NSMutableArray *caches = [NSMutableArray array];
-    NSFileManager* fileManager = [[NSFileManager alloc] init];
-    NSString *folderPath = [self cacheFolderPath];
-    NSDirectoryEnumerator* enumerator = [fileManager enumeratorAtPath:folderPath];
+    NSArray *cachePaths = [self allCachePaths];
     NSError* err = nil;
     
-    NSString* file;
-    while (file = [enumerator nextObject]) {
-        id cahceObject = [NSKeyedUnarchiver unarchiveObjectWithFile:[folderPath stringByAppendingPathComponent:file]];
-        if (!cahceObject) {
+    for (NSString *path in cachePaths) {
+        id cacheObject = [NSKeyedUnarchiver unarchiveObjectWithFile:path];
+        if (!cacheObject) {
             NSLog(@"Can't read cache object: %@", err);
         } else {
-            [caches addObject:cahceObject];
+            [caches addObject:cacheObject];
         }
     }
     return caches;
@@ -123,7 +128,7 @@
 
 #pragma mark - public API
 
-+ (UILocalNotification *)localNotificationForKey:(NSString *)key withRemoteNotification:(NSDictionary *)userInfo
++ (UILocalNotification *)localNotificationForKey:(NSString *)key userInfo:(NSDictionary *)userInfo
 {
     NSNumber *badge = nil;
     NSString *sound = nil;
@@ -184,32 +189,32 @@
     localNotification.alertLaunchImage = launchImage;
     localNotification.applicationIconBadgeNumber = [badge integerValue];
     localNotification.userInfo = userInfo;
-    localNotification.fireDate = [NSDate dateWithTimeIntervalSinceNow:0.1];
+    localNotification.fireDate = [NSDate date];
 
     [localNotification setS2mKey:key];
     
     return localNotification;
 }
 
-+ (BOOL)showNotification:(UILocalNotification *)noti;
++ (BOOL)showNotification:(UILocalNotification *)notification;
 {
-    return [self showNotification:noti withKey:noti.s2mKey];
+    return [self showNotification:notification withKey:notification.s2mKey];
 }
 
-+ (BOOL)showNotification:(UILocalNotification *)noti withKey:(NSString *)key
++ (BOOL)showNotification:(UILocalNotification *)notification withKey:(NSString *)key
 {
-    if (key.length == 0 || noti == nil) {
+    if (key.length == 0 || notification == nil) {
         return NO;
     }
     
-    [self cacheObject:noti forKey:key];
-    [[UIApplication sharedApplication] scheduleLocalNotification:noti];
+    [self cacheObject:notification forKey:key];
+    [[UIApplication sharedApplication] scheduleLocalNotification:notification];
     return YES;
 }
 
-+ (BOOL)removeNotification:(UILocalNotification *)noti
++ (BOOL)removeNotification:(UILocalNotification *)notification
 {
-    return [self removeNotificationForKey:noti.s2mKey];
+    return [self removeNotificationForKey:notification.s2mKey];
 }
 
 + (BOOL)removeNotificationForKey:(NSString *)key
