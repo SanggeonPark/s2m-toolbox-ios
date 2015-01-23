@@ -9,7 +9,7 @@
 #import "S2MNotificationHelper.h"
 #import "NSString+S2MNotificationHelper.h"
 
-#define CACHE_FOLDER_NAME @"S2M_NOTIFICATION_HELPER_CACHE"
+static NSString * const kS2MNotificationHelperFolder = @"S2M_NOTIFICATION_HELPER_CACHE";
 
 @implementation S2MNotificationHelper
 
@@ -43,7 +43,7 @@
         NSArray *documentsPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
         documentsPath = [documentsPaths objectAtIndex:0];
         
-        documentsPath = [documentsPath stringByAppendingPathComponent:CACHE_FOLDER_NAME];
+        documentsPath = [documentsPath stringByAppendingPathComponent:kS2MNotificationHelperFolder];
         if (![[NSFileManager defaultManager] fileExistsAtPath:documentsPath]) {
             [[NSFileManager defaultManager] createDirectoryAtPath:documentsPath withIntermediateDirectories:NO attributes:nil error:nil];
         }
@@ -157,7 +157,7 @@
             }
             
             if (arguments.count && localizedStringKey.length) {
-                alertString = [NSString s2m_stringWithFormat:NSLocalizedString(localizedStringKey, nil) array:arguments];
+                alertString = [NSString s2m_stringWithFormat:NSLocalizedString(localizedStringKey, nil) arguments:arguments];
             } else if (localizedStringKey.length) {
                 alertString = NSLocalizedString(localizedStringKey, nil);
             }
